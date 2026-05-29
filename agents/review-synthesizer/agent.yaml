@@ -1,0 +1,25 @@
+spec_version: "0.1.0"
+name: review-synthesizer
+version: 1.0.0
+description: >
+  Reads reports from all three reviewer agents and issues the final
+  PR verdict. This agent performs NO direct code analysis — it is
+  purely a synthesis and decision layer. SOD enforcement ensures it
+  cannot be held by the same entity as any reviewer.
+
+model:
+  preferred: claude-sonnet-4-6
+
+compliance:
+  segregation_of_duties:
+    roles: [synthesizer]
+    # BLOCKED from reviewer and orchestrator roles
+    enforcement: strict
+
+output_schema:
+  verdict: enum[approve, request_changes, needs_discussion]
+  overall_score: number
+  summary: string
+  action_items: array
+  breakdown: object
+  badge: string

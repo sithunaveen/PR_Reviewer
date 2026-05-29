@@ -1,0 +1,80 @@
+name: GitAgent CI
+
+on:
+  push:
+    branches: [main, dev, staging]
+  pull_request:
+
+jobs:
+  validate-agents:
+    name: Validate GitAgent Definitions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install gitagent CLI
+        run: npm install -g @shreyaskapale/gitagent
+
+      - name: Validate root agent
+        run: gitagent validate --compliance
+
+      - name: Validate sub-agents
+        run: |
+          for dir in agents/*/; do
+            echo "Validating $dir..."
+            gitagent validate "$dir"
+          done
+
+      - name: Check SOD compliance
+        run: gitagent audit
+
+      - name: Export system prompts (smoke test)
+        run: |
+          for dir in agents/*/; do
+            echo "Exporting $dir..."
+            gitagent export "$dir" --format system-prompt > /dev/null
+          done
+
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest httpx
+
+      - name: Run backend tests
+        run: cd backend && python -m pytest tests/ -v
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  lint-frontend:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: cd frontend && npm install
+
+      - name: Type check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: Build
+        run: cd frontend && npm run build

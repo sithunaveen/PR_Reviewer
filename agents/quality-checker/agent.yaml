@@ -1,0 +1,22 @@
+spec_version: "0.1.0"
+name: quality-checker
+version: 1.0.0
+description: >
+  Reviews code diffs for maintainability, readability, test coverage,
+  documentation, and engineering best practices. Independent reviewer
+  with no approval authority.
+
+model:
+  preferred: claude-sonnet-4-6
+
+compliance:
+  segregation_of_duties:
+    roles: [reviewer]
+    enforcement: strict
+
+output_schema:
+  findings: array
+  severity: enum[critical, high, medium, low, clean]
+  score: number
+  test_coverage_delta: string
+  confidence: number

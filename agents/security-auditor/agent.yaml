@@ -1,0 +1,34 @@
+spec_version: "0.1.0"
+name: security-auditor
+version: 1.0.0
+description: >
+  Analyzes code diffs for security vulnerabilities: injection attacks,
+  secrets leakage, dependency issues, authentication flaws, and OWASP Top 10.
+  Operates as an independent reviewer with no approval authority.
+
+model:
+  preferred: claude-sonnet-4-6
+
+compliance:
+  segregation_of_duties:
+    roles: [reviewer]
+    # This agent is BLOCKED from synthesizer and orchestrator roles
+    enforcement: strict
+
+output_schema:
+  findings:
+    type: array
+    items:
+      type: object
+      properties:
+        id: string
+        severity: enum[critical, high, medium, low, info]
+        category: string
+        file: string
+        line_range: string
+        description: string
+        recommendation: string
+        cwe_id: string
+  severity: enum[critical, high, medium, low, clean]
+  cves: array
+  confidence: number

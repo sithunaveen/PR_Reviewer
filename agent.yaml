@@ -1,0 +1,80 @@
+spec_version: "0.1.0"
+name: pr-sheriff
+version: 1.0.0
+description: >
+  Multi-agent GitHub PR review system with strict Segregation of Duties.
+  Three independent reviewer agents analyze code from different lenses,
+  and a separate synthesizer agent issues the final verdict — no single
+  agent can both review and approve.
+
+model:
+  preferred: claude-opus-4-6
+  fallback: claude-sonnet-4-6
+
+skills:
+  - github-fetcher
+  - code-analyzer
+
+workflows:
+  - pr-review-flow
+
+agents:
+  - name: security-auditor
+    source: ./agents/security-auditor
+    version: "^1.0.0"
+  - name: performance-reviewer
+    source: ./agents/performance-reviewer
+    version: "^1.0.0"
+  - name: quality-checker
+    source: ./agents/quality-checker
+    version: "^1.0.0"
+  - name: review-synthesizer
+    source: ./agents/review-synthesizer
+    version: "^1.0.0"
+
+compliance:
+  risk_tier: medium
+  supervision:
+    human_in_the_loop: on_request
+    kill_switch: true
+  recordkeeping:
+    audit_logging: true
+    retention_period: 90d
+  segregation_of_duties:
+    roles:
+      - id: reviewer
+        description: >
+          Analyzes code diff for specific concerns and flags issues.
+          Cannot issue final verdicts or merge approvals.
+        permissions: [analyze, flag, suggest, comment]
+      - id: synthesizer
+        description: >
+          Reads all reviewer outputs and issues the final verdict.
+          Cannot perform direct code analysis — depends entirely on reviewers.
+        permissions: [synthesize, approve, reject, request_changes]
+      - id: orchestrator
+        description: >
+          Coordinates the workflow, delegates to reviewers, passes output
+          to synthesizer. Has no analysis or approval permissions.
+        permissions: [orchestrate, delegate, route]
+    conflicts:
+      - [reviewer, synthesizer]      # A reviewer cannot also synthesize
+      - [orchestrator, synthesizer]  # The coordinator cannot approve
+    assignments:
+      security-auditor: [reviewer]
+      performance-reviewer: [reviewer]
+      quality-checker: [reviewer]
+      review-synthesizer: [synthesizer]
+      pr-sheriff: [orchestrator]
+    handoffs:
+      - action: final_verdict
+        required_roles: [reviewer, synthesizer]
+        minimum_reviewer_count: 2
+        approval_required: true
+    enforcement: strict
+
+tags:
+  - code-review
+  - github
+  - multi-agent
+  - devsecops

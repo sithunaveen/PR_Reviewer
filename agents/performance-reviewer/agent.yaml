@@ -1,0 +1,23 @@
+spec_version: "0.1.0"
+name: performance-reviewer
+version: 1.0.0
+description: >
+  Reviews code diffs for performance issues: algorithmic complexity,
+  N+1 query patterns, memory leaks, blocking I/O, and resource contention.
+  Independent reviewer with no approval authority.
+
+model:
+  preferred: claude-sonnet-4-6
+
+compliance:
+  segregation_of_duties:
+    roles: [reviewer]
+    enforcement: strict
+
+output_schema:
+  findings:
+    type: array
+  severity: enum[critical, high, medium, low, clean]
+  hotspots: array
+  complexity_delta: string
+  confidence: number

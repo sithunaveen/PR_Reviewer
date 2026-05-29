@@ -1,0 +1,112 @@
+name: pr-review-flow
+description: >
+  Full multi-agent PR review pipeline. Fetches the PR diff, dispatches
+  to three independent reviewer agents in parallel, then routes all
+  findings to the synthesizer for a final verdict.
+version: "1.0.0"
+
+triggers:
+  - pr_url_submitted
+  - api_request
+
+inputs:
+  pr_url:
+    type: string
+    description: GitHub PR URL (e.g. https://github.com/owner/repo/pull/42)
+    required: true
+  github_token:
+    type: secret
+    description: GitHub Personal Access Token for private repos
+    required: false
+  review_depth:
+    type: enum
+    values: [quick, standard, deep]
+    default: standard
+
+steps:
+  # ── Stage 1: Fetch PR Diff ──────────────────────────────────────────
+  fetch_diff:
+    skill: github-fetcher
+    inputs:
+      pr_url: ${{ inputs.pr_url }}
+      token: ${{ inputs.github_token }}
+    outputs:
+      diff: ${{ result.diff }}
+      metadata: ${{ result.metadata }}
+      file_count: ${{ result.file_count }}
+      additions: ${{ result.additions }}
+      deletions: ${{ result.deletions }}
+
+  # ── Stage 2: Parallel Review (all three run simultaneously) ─────────
+  security_review:
+    agent: security-auditor
+    depends_on: [fetch_diff]
+    parallel_group: reviewers
+    inputs:
+      diff: ${{ steps.fetch_diff.outputs.diff }}
+      metadata: ${{ steps.fetch_diff.outputs.metadata }}
+    outputs:
+      findings: ${{ result.findings }}
+      severity: ${{ result.severity }}
+      cves: ${{ result.cves }}
+
+  performance_review:
+    agent: performance-reviewer
+    depends_on: [fetch_diff]
+    parallel_group: reviewers
+    inputs:
+      diff: ${{ steps.fetch_diff.outputs.diff }}
+      metadata: ${{ steps.fetch_diff.outputs.metadata }}
+    outputs:
+      findings: ${{ result.findings }}
+      severity: ${{ result.severity }}
+      hotspots: ${{ result.hotspots }}
+
+  quality_review:
+    agent: quality-checker
+    depends_on: [fetch_diff]
+    parallel_group: reviewers
+    inputs:
+      diff: ${{ steps.fetch_diff.outputs.diff }}
+      metadata: ${{ steps.fetch_diff.outputs.metadata }}
+    outputs:
+      findings: ${{ result.findings }}
+      severity: ${{ result.severity }}
+      score: ${{ result.score }}
+
+  # ── Stage 3: SOD Checkpoint ─────────────────────────────────────────
+  sod_checkpoint:
+    skill: code-analyzer
+    action: validate_sod
+    depends_on: [security_review, performance_review, quality_review]
+    inputs:
+      reviewer_agents: [security-auditor, performance-reviewer, quality-checker]
+      synthesizer_agent: review-synthesizer
+      policy: ${{ agent.compliance.segregation_of_duties }}
+    conditions:
+      - ${{ steps.security_review.status == 'completed' }}
+      - ${{ steps.performance_review.status == 'completed' }}
+      - ${{ steps.quality_review.status == 'completed' }}
+
+  # ── Stage 4: Final Synthesis ─────────────────────────────────────────
+  synthesize:
+    agent: review-synthesizer
+    depends_on: [sod_checkpoint]
+    inputs:
+      pr_metadata: ${{ steps.fetch_diff.outputs.metadata }}
+      security_report: ${{ steps.security_review.outputs.findings }}
+      performance_report: ${{ steps.performance_review.outputs.findings }}
+      quality_report: ${{ steps.quality_review.outputs.findings }}
+      review_depth: ${{ inputs.review_depth }}
+    outputs:
+      verdict: ${{ result.verdict }}
+      summary: ${{ result.summary }}
+      action_items: ${{ result.action_items }}
+      overall_score: ${{ result.overall_score }}
+
+error_handling:
+  on_failure: halt_and_notify
+  retry_policy:
+    max_attempts: 2
+    backoff: exponential
+  fallback: surface_partial_results
