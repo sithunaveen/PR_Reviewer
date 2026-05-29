@@ -1,4 +1,4 @@
-# PR Sheriff 🔍
+# PR Reviewer 🔍
 
 > **Multi-agent GitHub PR review with strict Segregation of Duties — built on [GitAgent](https://github.com/open-gitagent/gitagent)**
 
@@ -12,7 +12,7 @@
 
 Every PR review tool I've seen uses one AI model to do everything: analyze security, check performance, assess quality, and then approve — all in one shot. That's like having your developer write code, review it, and merge it themselves.
 
-PR Sheriff applies the **four-eyes principle** at the agent level:
+PR Reviewer applies the **four-eyes principle** at the agent level:
 
 ```
 GitHub PR URL
@@ -143,8 +143,8 @@ Real-time streaming UI with:
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-username/pr-sheriff
-cd pr-sheriff
+git clone https://github.com/your-username/pr-Reviewer
+cd pr-Reviewer
 
 # 2. Set env vars
 cp .env.example .env
